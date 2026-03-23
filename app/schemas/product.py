@@ -7,6 +7,7 @@ from app.schemas.category import CategoryResponse
 class ProductImageResponse(BaseModel):
     id: int
     image_path: str
+    image_url: str
     sort_order: int
 
     model_config = {"from_attributes": True}

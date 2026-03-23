@@ -6,11 +6,12 @@ FastAPI backend for the LUPE handmade crafts catalog.
 
 ```bash
 cp .env.example .env
-# Edit .env — set SECRET_KEY, DB_PASSWORD, WHATSAPP_NUMBER
+# Edit .env — set SECRET_KEY, DB_PASSWORD, STORAGE_ACCESS_KEY, STORAGE_SECRET_KEY, WHATSAPP_NUMBER
 docker compose up --build
 ```
 
 API available at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
+MinIO console available at `http://localhost:9001`.
 
 ## Local Development
 
@@ -18,12 +19,13 @@ API available at `http://localhost:8000`. Docs at `http://localhost:8000/docs`.
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Start PostgreSQL (or use Docker for just the DB)
-docker compose up db -d
+# Start PostgreSQL and MinIO
+docker compose up db minio -d
 
 # Copy and edit env
 cp .env.example .env
 # Set DATABASE_URL to point to localhost: postgresql+asyncpg://lupe:secret@localhost:5432/lupe
+# Set STORAGE_ENDPOINT=http://localhost:9000 (API reaches MinIO directly when running outside Docker)
 
 # Run migrations
 alembic upgrade head
@@ -68,7 +70,11 @@ pytest
 | GET | /api/v1/admin/settings | JWT | Get settings (admin) |
 | PUT | /api/v1/admin/settings | JWT | Update settings |
 
-## Image Serving
+## Image Storage
 
-- Dev: `http://localhost:8000/media/{image_path}`
-- Prod: served by Nginx directly from the media volume
+Images are stored in MinIO (S3-compatible object storage) instead of the local filesystem.
+
+- The DB stores the storage key (e.g. `products/15/img_abc.jpg`)
+- API responses include the full public URL: `{STORAGE_PUBLIC_URL}/{STORAGE_BUCKET}/{key}`
+- Dev: `http://localhost:9000/lupe-media/{key}`
+- Prod: set `STORAGE_PUBLIC_URL` to your VM's IP (e.g. `http://YOUR_VM_IP:9000`)

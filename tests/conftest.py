@@ -1,5 +1,6 @@
 import pytest
 import pytest_asyncio
+from unittest.mock import AsyncMock
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -64,6 +65,13 @@ async def client(db_session: AsyncSession):
         yield ac
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def mock_storage(monkeypatch):
+    monkeypatch.setattr("app.services.image_service.storage_service.upload", AsyncMock())
+    monkeypatch.setattr("app.services.image_service.storage_service.delete", AsyncMock())
+    monkeypatch.setattr("app.services.storage_service.ensure_bucket", AsyncMock())
 
 
 @pytest_asyncio.fixture

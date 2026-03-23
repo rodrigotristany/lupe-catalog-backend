@@ -154,7 +154,15 @@ async def upload_images(
     created = await image_service.upload_images(db, product, files, username=admin)
     # Save history snapshot after upload
     await product_service._save_snapshot(db, product, "updated", admin)
-    return created
+    return [
+        ProductImageResponse(
+            id=img.id,
+            image_path=img.image_path,
+            image_url=app_settings.image_url(img.image_path),
+            sort_order=img.sort_order,
+        )
+        for img in created
+    ]
 
 
 @router.get("/products/{product_id}/history", response_model=list[ProductHistoryResponse])
@@ -201,7 +209,7 @@ async def update_settings(
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _to_list_item(product) -> ProductListItem:
-    primary_image = product.images[0].image_path if product.images else None
+    primary_image = app_settings.image_url(product.images[0].image_path) if product.images else None
     return ProductListItem(
         id=product.id,
         name_es=product.name_es,
@@ -226,7 +234,15 @@ def _to_detail(product) -> ProductDetail:
         description_en=product.description_en,
         price=str(product.price),
         category=product.category,
-        images=product.images,
+        images=[
+            ProductImageResponse(
+                id=img.id,
+                image_path=img.image_path,
+                image_url=app_settings.image_url(img.image_path),
+                sort_order=img.sort_order,
+            )
+            for img in product.images
+        ],
         is_active=product.is_active,
         created_at=product.created_at,
         updated_at=product.updated_at,

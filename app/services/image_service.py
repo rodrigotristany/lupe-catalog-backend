@@ -1,13 +1,12 @@
-import os
+import io
 import uuid
-from pathlib import Path
 from fastapi import UploadFile, HTTPException, status
 from PIL import Image
-import io
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.product_image import ProductImage
 from app.models.product import Product
+from app.services import storage_service
 from app.config import settings
 
 ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
@@ -17,9 +16,7 @@ MAX_BYTES = settings.MAX_IMAGE_SIZE_MB * 1024 * 1024
 async def upload_images(
     db: AsyncSession, product: Product, files: list[UploadFile], username: str = "admin"
 ) -> list[ProductImage]:
-    # Determine next sort_order
     next_order = len(product.images)
-
     created_images: list[ProductImage] = []
 
     for file in files:
@@ -36,36 +33,27 @@ async def upload_images(
                 detail=f"File '{file.filename}' exceeds maximum size of {settings.MAX_IMAGE_SIZE_MB}MB",
             )
 
-        # Process image
         img = Image.open(io.BytesIO(contents))
-        if img.mode not in ("RGB", "RGBA"):
-            img = img.convert("RGB")
-        elif img.mode == "RGBA":
+        if img.mode == "RGBA":
             background = Image.new("RGB", img.size, (255, 255, 255))
             background.paste(img, mask=img.split()[3])
             img = background
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
 
         if img.width > settings.IMAGE_MAX_WIDTH:
             ratio = settings.IMAGE_MAX_WIDTH / img.width
-            new_height = int(img.height * ratio)
-            img = img.resize((settings.IMAGE_MAX_WIDTH, new_height), Image.LANCZOS)
-
-        # Ensure RGB for JPEG save
-        if img.mode != "RGB":
-            img = img.convert("RGB")
-
-        img_uuid = uuid.uuid4().hex
-        relative_path = f"products/{product.id}/img_{img_uuid}.jpg"
-        absolute_path = Path(settings.MEDIA_DIR) / relative_path
-        absolute_path.parent.mkdir(parents=True, exist_ok=True)
+            img = img.resize((settings.IMAGE_MAX_WIDTH, int(img.height * ratio)), Image.LANCZOS)
 
         output = io.BytesIO()
         img.save(output, format="JPEG", quality=settings.IMAGE_QUALITY, optimize=True)
-        absolute_path.write_bytes(output.getvalue())
+
+        key = f"products/{product.id}/img_{uuid.uuid4().hex}.jpg"
+        await storage_service.upload(key, output.getvalue())
 
         product_image = ProductImage(
             product_id=product.id,
-            image_path=relative_path,
+            image_path=key,
             sort_order=next_order,
         )
         db.add(product_image)
@@ -74,7 +62,6 @@ async def upload_images(
         created_images.append(product_image)
         next_order += 1
 
-    # Refresh product to include new images in snapshot
     await db.refresh(product)
     return created_images
 
@@ -85,16 +72,12 @@ async def delete_image(db: AsyncSession, image_id: int) -> Product:
     if image is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Image not found")
 
-    # Delete file from disk
-    file_path = Path(settings.MEDIA_DIR) / image.image_path
-    if file_path.exists():
-        file_path.unlink()
+    await storage_service.delete(image.image_path)
 
     product_id = image.product_id
     await db.delete(image)
     await db.flush()
 
-    # Return parent product for snapshot
     product_result = await db.execute(select(Product).where(Product.id == product_id))
     product = product_result.scalar_one()
     await db.refresh(product)

@@ -4,9 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db
 from app.services import category_service, product_service, settings_service
 from app.schemas.category import CategoryResponse
-from app.schemas.product import ProductListItem, ProductDetail
+from app.schemas.product import ProductListItem, ProductDetail, ProductImageResponse
 from app.schemas.settings import SettingsResponse
 from app.schemas.common import PaginatedResponse
+from app.config import settings as app_settings
 
 router = APIRouter(prefix="/api/v1")
 
@@ -54,7 +55,7 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 
 
 def _to_list_item(product) -> ProductListItem:
-    primary_image = product.images[0].image_path if product.images else None
+    primary_image = app_settings.image_url(product.images[0].image_path) if product.images else None
     return ProductListItem(
         id=product.id,
         name_es=product.name_es,
@@ -79,7 +80,15 @@ def _to_detail(product) -> ProductDetail:
         description_en=product.description_en,
         price=str(product.price),
         category=product.category,
-        images=product.images,
+        images=[
+            ProductImageResponse(
+                id=img.id,
+                image_path=img.image_path,
+                image_url=app_settings.image_url(img.image_path),
+                sort_order=img.sort_order,
+            )
+            for img in product.images
+        ],
         is_active=product.is_active,
         created_at=product.created_at,
         updated_at=product.updated_at,

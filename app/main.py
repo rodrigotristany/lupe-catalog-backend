@@ -1,13 +1,12 @@
 import logging
 import traceback
 from contextlib import asynccontextmanager
-from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.routers import public, admin
+from app.services import storage_service
 
 logging.basicConfig(level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO))
 logger = logging.getLogger(__name__)
@@ -15,14 +14,11 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await storage_service.ensure_bucket()
     yield
 
 
 def create_app() -> FastAPI:
-    # Ensure media directory exists before mounting StaticFiles
-    media_path = Path(settings.MEDIA_DIR)
-    media_path.mkdir(parents=True, exist_ok=True)
-
     app = FastAPI(
         title="LUPE Catalog API",
         version="1.0.0",
@@ -41,9 +37,6 @@ def create_app() -> FastAPI:
 
     app.include_router(public.router)
     app.include_router(admin.router)
-
-    # Serve uploaded media in development
-    app.mount("/media", StaticFiles(directory=str(media_path)), name="media")
 
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
