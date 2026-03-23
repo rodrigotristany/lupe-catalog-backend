@@ -146,12 +146,12 @@ async def delete_product(
 )
 async def upload_images(
     product_id: int,
-    files: list[UploadFile] = File(...),
+    images: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
     admin: str = Depends(get_current_admin),
 ):
     product = await product_service.get_product_by_id(db, product_id, include_inactive=True)
-    created = await image_service.upload_images(db, product, files, username=admin)
+    created = await image_service.upload_images(db, product, images, username=admin)
     # Save history snapshot after upload
     await product_service._save_snapshot(db, product, "updated", admin)
     return [
