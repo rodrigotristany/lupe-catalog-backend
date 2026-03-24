@@ -168,10 +168,11 @@ async def upload_images(
 @router.get("/products/{product_id}/history", response_model=list[ProductHistoryResponse])
 async def get_product_history(
     product_id: int,
+    limit: int | None = Query(None, ge=1),
     db: AsyncSession = Depends(get_db),
     _: str = Depends(get_current_admin),
 ):
-    return await product_service.get_product_history(db, product_id)
+    return await product_service.get_product_history(db, product_id, limit=limit)
 
 
 # ── Images ────────────────────────────────────────────────────────────────────

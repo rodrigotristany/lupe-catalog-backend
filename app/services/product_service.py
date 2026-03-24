@@ -152,15 +152,18 @@ async def soft_delete_product(db: AsyncSession, product_id: int, username: str =
     await _save_snapshot(db, product, "deleted", username)
 
 
-async def get_product_history(db: AsyncSession, product_id: int) -> list[ProductHistory]:
+async def get_product_history(db: AsyncSession, product_id: int, limit: int | None = None) -> list[ProductHistory]:
     # Verify product exists (even if inactive)
     result = await db.execute(select(Product).where(Product.id == product_id))
     if result.scalar_one_or_none() is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    history_result = await db.execute(
+    query = (
         select(ProductHistory)
         .where(ProductHistory.product_id == product_id)
         .order_by(ProductHistory.changed_at.desc())
     )
+    if limit is not None:
+        query = query.limit(limit)
+    history_result = await db.execute(query)
     return list(history_result.scalars().all())
