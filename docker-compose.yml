@@ -34,7 +34,7 @@ services:
 
   api:
     build: .
-    env_file: .env
+    env_file: .env.docker
     depends_on:
       db:
         condition: service_healthy
