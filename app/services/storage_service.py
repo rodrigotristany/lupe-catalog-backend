@@ -2,6 +2,21 @@ from miniopy_async import Minio
 from app.config import settings
 from miniopy_async.error import S3Error
 
+
+_client_instance: Minio | None = None
+
+
+def get_client() -> Minio:
+    global _client_instance
+    if _client_instance is None:
+        _client_instance = Minio(
+            _endpoint(),
+            access_key=settings.STORAGE_ACCESS_KEY,
+            secret_key=settings.STORAGE_SECRET_KEY,
+            secure=False,
+        )
+    return _client_instance
+
 def _endpoint() -> str:
     return settings.STORAGE_ENDPOINT.replace("http://", "").replace("https://", "")
 
@@ -17,7 +32,7 @@ def _client() -> Minio:
 
 
 async def ensure_bucket() -> None:
-    client = _client()
+    client = get_client()
 
     try:
         exists = await client.bucket_exists(settings.STORAGE_BUCKET)
@@ -42,7 +57,7 @@ async def ensure_bucket() -> None:
 
 async def upload(key: str, data: bytes) -> None:
     import io
-    client = _client()
+    client = get_client()
     await client.put_object(
         settings.STORAGE_BUCKET,
         key,
@@ -53,5 +68,5 @@ async def upload(key: str, data: bytes) -> None:
 
 
 async def delete(key: str) -> None:
-    client = _client()
+    client = get_client()
     await client.remove_object(settings.STORAGE_BUCKET, key)

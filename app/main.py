@@ -14,8 +14,16 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.storage_client = storage_service.get_client()
+
     await storage_service.ensure_bucket()
+
     yield
+
+    try:
+        await app.state.storage_client._http_client.close()
+    except Exception:
+        pass
 
 
 def create_app() -> FastAPI:
