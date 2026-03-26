@@ -24,12 +24,14 @@ services:
     restart: always
     env_file: .env.docker
     depends_on:
-      db:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - db
+      - minio
     ports:
       - "127.0.0.1:8000:8000"
     command: >
       sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+
+volumes:
+  postgres_data:
+  minio_data:
