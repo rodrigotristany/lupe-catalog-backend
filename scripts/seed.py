@@ -6,7 +6,9 @@ import asyncio
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+project_root = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, project_root)
+os.chdir(project_root)
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import select
@@ -28,7 +30,7 @@ SAMPLE_CATEGORIES = [
 
 
 async def seed() -> None:
-    engine = create_async_engine(settings.DATABASE_URL, echo=False)
+    engine = create_async_engine(settings.DATABASE_URL, echo=False, connect_args={"ssl": False})
     factory = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
 
     async with factory() as db:
