@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: lupe
       POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
       POSTGRES_DB: lupe
+    ports:
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -16,11 +18,14 @@ services:
     environment:
       MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY:-minioadmin}
       MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY:-minioadmin}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     volumes:
       - minio_data:/data
 
   api:
-    build: .
+    image: ghcr.io/rodrigotristany/lupe-catalog-backend:latest
     restart: always
     env_file: .env.docker
     depends_on:
