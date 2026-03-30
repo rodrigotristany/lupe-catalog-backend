@@ -1,7 +1,7 @@
 import io
 import uuid
 from fastapi import UploadFile, HTTPException, status
-from PIL import Image
+from PIL import Image, ImageOps
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.product_image import ProductImage
@@ -34,6 +34,7 @@ async def upload_images(
             )
 
         img = Image.open(io.BytesIO(contents))
+        img = ImageOps.exif_transpose(img)
         if img.mode == "RGBA":
             background = Image.new("RGB", img.size, (255, 255, 255))
             background.paste(img, mask=img.split()[3])
