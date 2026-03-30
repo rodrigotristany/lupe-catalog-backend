@@ -32,7 +32,7 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
 
     def image_url(self, key: str) -> str:
-        return f"{self.STORAGE_PUBLIC_URL}/{self.STORAGE_BUCKET}/{key}"
+        return f"{self.STORAGE_PUBLIC_URL}/media/{key}"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
