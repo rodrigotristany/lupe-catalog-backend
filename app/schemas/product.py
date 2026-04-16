@@ -21,6 +21,7 @@ class ProductBase(BaseModel):
     price: Decimal
     category_id: int | None = None
     is_active: bool = True
+    priority: int = 0
 
     @field_validator("name_es", "name_en")
     @classmethod
@@ -55,6 +56,8 @@ class ProductUpdate(BaseModel):
     price: Decimal | None = None
     category_id: int | None = None
     is_active: bool | None = None
+    priority: int | None = None
+    cover_image_id: int | None = None
 
     @field_validator("name_es", "name_en")
     @classmethod
@@ -89,7 +92,9 @@ class ProductListItem(BaseModel):
     price: str
     category: CategoryResponse | None
     primary_image: str | None
+    cover_image_id: int | None
     is_active: bool
+    priority: int
     created_at: datetime
     updated_at: datetime
 
@@ -105,7 +110,10 @@ class ProductDetail(BaseModel):
     price: str
     category: CategoryResponse | None
     images: list[ProductImageResponse]
+    cover_image_id: int | None
+    cover_image: ProductImageResponse | None
     is_active: bool
+    priority: int
     created_at: datetime
     updated_at: datetime
 
