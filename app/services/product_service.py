@@ -1,6 +1,6 @@
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, text
 from fastapi import HTTPException, status
 from app.models.product import Product
 from app.models.product_history import ProductHistory
@@ -160,8 +160,12 @@ async def update_product(db: AsyncSession, product_id: int, data: ProductUpdate,
 async def delete_product(db: AsyncSession, product_id: int) -> None:
     product = await get_product_by_id(db, product_id, include_inactive=True)
     image_paths = [img.image_path for img in product.images]
-    await db.delete(product)
-    await db.flush()
+    # Expunge ORM objects so raw SQL can manage deletion without ORM circular dependency
+    for img in product.images:
+        db.expunge(img)
+    db.expunge(product)
+    await db.execute(text("UPDATE products SET cover_image_id = NULL WHERE id = :id"), {"id": product_id})
+    await db.execute(text("DELETE FROM products WHERE id = :id"), {"id": product_id})
     for path in image_paths:
         await storage_service.delete(path)
 
