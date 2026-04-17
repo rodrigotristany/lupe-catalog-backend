@@ -11,6 +11,7 @@ class Product(Base, TimestampMixin):
         Index("idx_products_is_active", "is_active"),
         Index("idx_products_name_es", "name_es"),
         Index("idx_products_name_en", "name_en"),
+        Index("idx_products_priority", "priority"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -23,15 +24,28 @@ class Product(Base, TimestampMixin):
         Integer, ForeignKey("categories.id", ondelete="SET NULL"), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cover_image_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("product_images.id", ondelete="SET NULL", use_alter=True, name="fk_products_cover_image_id"),
+        nullable=True,
+    )
 
     category: Mapped["Category | None"] = relationship(
         "Category", back_populates="products", lazy="selectin"
     )
     images: Mapped[list["ProductImage"]] = relationship(
         "ProductImage",
+        primaryjoin="Product.id == ProductImage.product_id",
         back_populates="product",
         cascade="all, delete-orphan",
         order_by="ProductImage.sort_order",
+        lazy="selectin",
+    )
+    cover_image: Mapped["ProductImage | None"] = relationship(
+        "ProductImage",
+        primaryjoin="Product.cover_image_id == ProductImage.id",
+        foreign_keys="[Product.cover_image_id]",
         lazy="selectin",
     )
     history: Mapped[list["ProductHistory"]] = relationship(

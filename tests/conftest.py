@@ -71,6 +71,7 @@ async def client(db_session: AsyncSession):
 def mock_storage(monkeypatch):
     monkeypatch.setattr("app.services.image_service.storage_service.upload", AsyncMock())
     monkeypatch.setattr("app.services.image_service.storage_service.delete", AsyncMock())
+    monkeypatch.setattr("app.services.product_service.storage_service.delete", AsyncMock())
     monkeypatch.setattr("app.services.storage_service.ensure_bucket", AsyncMock())
 
 

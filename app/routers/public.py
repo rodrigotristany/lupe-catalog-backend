@@ -55,7 +55,8 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 
 
 def _to_list_item(product) -> ProductListItem:
-    primary_image = app_settings.image_url(product.images[0].image_path) if product.images else None
+    cover = product.cover_image or (product.images[0] if product.images else None)
+    primary_image = app_settings.image_url(cover.image_path) if cover else None
     return ProductListItem(
         id=product.id,
         name_es=product.name_es,
@@ -65,13 +66,25 @@ def _to_list_item(product) -> ProductListItem:
         price=str(product.price),
         category=product.category,
         primary_image=primary_image,
+        cover_image_id=product.cover_image_id,
         is_active=product.is_active,
+        priority=product.priority,
         created_at=product.created_at,
         updated_at=product.updated_at,
     )
 
 
 def _to_detail(product) -> ProductDetail:
+    cover = (
+        ProductImageResponse(
+            id=product.cover_image.id,
+            image_path=product.cover_image.image_path,
+            image_url=app_settings.image_url(product.cover_image.image_path),
+            sort_order=product.cover_image.sort_order,
+        )
+        if product.cover_image
+        else None
+    )
     return ProductDetail(
         id=product.id,
         name_es=product.name_es,
@@ -89,7 +102,10 @@ def _to_detail(product) -> ProductDetail:
             )
             for img in product.images
         ],
+        cover_image_id=product.cover_image_id,
+        cover_image=cover,
         is_active=product.is_active,
+        priority=product.priority,
         created_at=product.created_at,
         updated_at=product.updated_at,
     )

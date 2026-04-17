@@ -1,11 +1,12 @@
 from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, text
 from fastapi import HTTPException, status
 from app.models.product import Product
 from app.models.product_history import ProductHistory
 from app.models.category import Category
 from app.schemas.product import ProductCreate, ProductUpdate
+from app.services import storage_service
 
 
 async def _save_snapshot(db: AsyncSession, product: Product, action: str, username: str = "admin") -> None:
@@ -17,6 +18,8 @@ async def _save_snapshot(db: AsyncSession, product: Product, action: str, userna
         "price": str(product.price),
         "category_id": product.category_id,
         "is_active": product.is_active,
+        "priority": product.priority,
+        "cover_image_id": product.cover_image_id,
         "image_paths": [img.image_path for img in product.images],
     }
     history = ProductHistory(
@@ -72,7 +75,7 @@ async def get_products(
     total_result = await db.execute(count_query)
     total = total_result.scalar_one()
 
-    # Sorting
+    # Priority is always the primary sort; the requested sort column breaks ties
     sort_columns = {
         "created_at": Product.created_at,
         "price": Product.price,
@@ -80,10 +83,8 @@ async def get_products(
         "name_en": Product.name_en,
     }
     sort_col = sort_columns.get(sort, Product.created_at)
-    if order == "asc":
-        query = query.order_by(sort_col.asc())
-    else:
-        query = query.order_by(sort_col.desc())
+    secondary = sort_col.asc() if order == "asc" else sort_col.desc()
+    query = query.order_by(Product.priority.asc(), secondary, Product.id.asc())
 
     query = query.offset((page - 1) * per_page).limit(per_page)
     result = await db.execute(query)
@@ -113,6 +114,7 @@ async def create_product(db: AsyncSession, data: ProductCreate, username: str = 
         price=data.price,
         category_id=data.category_id,
         is_active=data.is_active,
+        priority=data.priority,
     )
     db.add(product)
     await db.flush()
@@ -138,18 +140,34 @@ async def update_product(db: AsyncSession, product_id: int, data: ProductUpdate,
         product.category_id = data.category_id
     if data.is_active is not None:
         product.is_active = data.is_active
+    if data.priority is not None:
+        product.priority = data.priority
+    if "cover_image_id" in data.model_fields_set:
+        if data.cover_image_id is not None:
+            image_ids = {img.id for img in product.images}
+            if data.cover_image_id not in image_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="cover_image_id does not belong to this product",
+                )
+        product.cover_image_id = data.cover_image_id
     await db.flush()
     await db.refresh(product)
     await _save_snapshot(db, product, "updated", username)
     return product
 
 
-async def soft_delete_product(db: AsyncSession, product_id: int, username: str = "admin") -> None:
+async def delete_product(db: AsyncSession, product_id: int) -> None:
     product = await get_product_by_id(db, product_id, include_inactive=True)
-    product.is_active = False
-    await db.flush()
-    await db.refresh(product)
-    await _save_snapshot(db, product, "deleted", username)
+    image_paths = [img.image_path for img in product.images]
+    # Expunge ORM objects so raw SQL can manage deletion without ORM circular dependency
+    for img in product.images:
+        db.expunge(img)
+    db.expunge(product)
+    await db.execute(text("UPDATE products SET cover_image_id = NULL WHERE id = :id"), {"id": product_id})
+    await db.execute(text("DELETE FROM products WHERE id = :id"), {"id": product_id})
+    for path in image_paths:
+        await storage_service.delete(path)
 
 
 async def get_product_history(db: AsyncSession, product_id: int, limit: int | None = None) -> list[ProductHistory]:
