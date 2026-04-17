@@ -18,4 +18,8 @@ class ProductImage(Base):
         server_default=func.now(), nullable=False
     )
 
-    product: Mapped["Product"] = relationship("Product", back_populates="images")
+    product: Mapped["Product"] = relationship(
+        "Product",
+        back_populates="images",
+        foreign_keys="[ProductImage.product_id]",
+    )
