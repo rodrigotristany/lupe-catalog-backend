@@ -1,4 +1,5 @@
-from sqlalchemy import String, CheckConstraint
+from sqlalchemy import String, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base
 from datetime import datetime
@@ -13,6 +14,9 @@ class StoreSettings(Base):
     whatsapp_number: Mapped[str] = mapped_column(String(20), nullable=False)
     currency_symbol: Mapped[str] = mapped_column(String(5), nullable=False, server_default="$")
     default_language: Mapped[str] = mapped_column(String(2), nullable=False, server_default="es")
+    payment_methods: Mapped[list] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now(), nullable=False
     )

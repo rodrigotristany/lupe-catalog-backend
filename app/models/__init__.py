@@ -5,6 +5,7 @@ from app.models.product_image import ProductImage
 from app.models.product_history import ProductHistory
 from app.models.store_settings import StoreSettings
 from app.models.admin_user import AdminUser
+from app.models.sale import Sale, SaleProduct
 
 __all__ = [
     "Base",
@@ -14,4 +15,6 @@ __all__ = [
     "ProductHistory",
     "StoreSettings",
     "AdminUser",
+    "Sale",
+    "SaleProduct",
 ]
