@@ -1,4 +1,6 @@
 import math
+from datetime import datetime
+from decimal import Decimal
 from fastapi import APIRouter, Depends, Query, UploadFile, File, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.dependencies import get_db, get_current_admin
@@ -8,6 +10,7 @@ from app.services import (
     product_service,
     image_service,
     settings_service,
+    sale_service,
 )
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryResponse
@@ -20,6 +23,7 @@ from app.schemas.product import (
     ProductImageResponse,
 )
 from app.schemas.settings import SettingsResponse, SettingsUpdate
+from app.schemas.sale import SaleCreate, SaleResponse
 from app.schemas.common import PaginatedResponse
 from app.config import settings as app_settings
 from fastapi import HTTPException
@@ -205,6 +209,49 @@ async def update_settings(
     _: str = Depends(get_current_admin),
 ):
     return await settings_service.update_settings(db, body)
+
+
+# ── Sales ─────────────────────────────────────────────────────────────────────
+
+@router.post("/sales", response_model=SaleResponse, status_code=status.HTTP_201_CREATED)
+async def create_sale(
+    body: SaleCreate,
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+):
+    return await sale_service.create_sale(db, body)
+
+
+@router.get("/sales", response_model=PaginatedResponse[SaleResponse])
+async def list_sales(
+    product_id: int | None = Query(None),
+    category_id: int | None = Query(None),
+    payment_method: str | None = Query(None),
+    date_from: datetime | None = Query(None),
+    date_to: datetime | None = Query(None),
+    total_min: Decimal | None = Query(None),
+    total_max: Decimal | None = Query(None),
+    order: str = Query("desc"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    _: str = Depends(get_current_admin),
+):
+    sales, total = await sale_service.get_sales(
+        db,
+        product_id=product_id,
+        category_id=category_id,
+        payment_method=payment_method,
+        date_from=date_from,
+        date_to=date_to,
+        total_min=total_min,
+        total_max=total_max,
+        order=order,
+        page=page,
+        per_page=per_page,
+    )
+    pages = math.ceil(total / per_page) if total > 0 else 0
+    return PaginatedResponse(items=sales, total=total, page=page, per_page=per_page, pages=pages)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -55,6 +55,7 @@ async def client(db_session: AsyncSession):
         whatsapp_number="+5493534000000",
         currency_symbol="$",
         default_language="es",
+        payment_methods=["Efectivo", "Transferencia", "Mercado Pago"],
     )
     db_session.add(admin)
     db_session.add(store)

@@ -23,6 +23,8 @@ async def update_settings(db: AsyncSession, data: SettingsUpdate) -> StoreSettin
         store_settings.currency_symbol = data.currency_symbol
     if data.default_language is not None:
         store_settings.default_language = data.default_language
+    if data.payment_methods is not None:
+        store_settings.payment_methods = data.payment_methods
     await db.flush()
     await db.refresh(store_settings)
     return store_settings
